@@ -1,0 +1,48 @@
+// ===== manifest.json =====
+{
+  "manifest_version": 3,
+  "name": "GraphQL BeastBoard",
+  "version": "2.0.0",
+  "description": "Ultimate GraphQL dashboard with AI-powered query generation, schema exploration, and real-time subscriptions",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Toggle GraphQL Dashboard"
+  },
+  "commands": {
+    "toggle-dashboard": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Toggle GraphQL Dashboard"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["codemirror.min.js", "codemirror.css", "dracula.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
