@@ -18,3 +18,13 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-graphql-requests') {
+        event.waitUntil(handleQueuedGraphqlRequests());
+    }
+});
+
+async function handleQueuedGraphqlRequests() {
+    // TODO: replay queued requests
+    console.log("Syncing queued GraphQL requests...");
+}
