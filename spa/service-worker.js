@@ -2,9 +2,7 @@ const CACHE_NAME = 'beastboard-cache-v1';
 
 const FILES_TO_CACHE = [
   '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js'
+  '/index.html'
 ];
 
 self.addEventListener('install', event => {
