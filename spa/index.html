@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL BeastBoard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <style>
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        .animate-slideDown { animation: slideDown 0.3s ease-out; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+        .animate-slideInRight { animation: slideInRight 0.3s ease-out; }
+        .transition-all { transition: all 0.3s ease; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        .json-key { color: #60a5fa; }
+        .json-string { color: #34d399; }
+        .json-number { color: #fbbf24; }
+        .json-boolean { color: #f472b6; }
+        .json-null { color: #9ca3af; }
+        .CodeMirror { 
+            height: auto; 
+            min-height: 150px;
+            background: #1f2937; 
+            color: white; 
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .CodeMirror-scroll { min-height: 150px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .history-item:hover { background: rgba(59, 130, 246, 0.1); }
+        .favorite-star { cursor: pointer; transition: all 0.2s; }
+        .favorite-star.active { color: #fbbf24; }
+    </style>
+</head>
+<body class="bg-black text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="glass border-b border-gray-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-3">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+               The GraphQL BeastBoard
+            </h1>
+            <div class="flex gap-2 flex-wrap">
+                <button id="themeBtn" class="p-2 hover:bg-gray-800 rounded-lg transition-all" title="Toggle Theme">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+                <button id="exportBtn" class="p-2 hover:bg-gray-800 rounded-lg transition-all" title="Export Config">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </button>
+                <button id="importBtn" class="p-2 hover:bg-gray-800 rounded-lg transition-all" title="Import Config">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                </button>
+                <button id="eduToggle" class="p-2 hover:bg-gray-800 rounded-lg transition-all" title="Learning Center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </button>
+                <button id="settingsBtn" class="p-2 hover:bg-gray-800 rounded-lg transition-all" title="Settings">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+<!-- Settings Modal -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="glass border border-gray-800 rounded-2xl max-w-2xl w-full p-6 animate-slideDown max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold">Settings</h2>
+            <button id="closeSettings" class="p-2 hover:bg-gray-800 rounded-lg transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-700 mb-6">
+            <button class="settings-tab px-4 py-2 border-b-2 border-blue-500 text-blue-400" data-tab="graphql">GraphQL</button>
+            <button class="settings-tab px-4 py-2 border-b-2 border-transparent text-gray-400" data-tab="ai">AI Assistant</button>
+        </div>
+
+        <!-- GraphQL Settings -->
+        <div id="graphql-settings" class="settings-content space-y-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">GraphQL Endpoint</label>
+                <input id="endpointInput" type="url" placeholder="https://api.example.com/graphql" 
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">API Key (Optional)</label>
+                <input id="apiKeyInput" type="password" placeholder="Your API key" 
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">WebSocket Endpoint (Optional)</label>
+                <input id="wsEndpointInput" type="url" placeholder="wss://api.example.com/graphql" 
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+            </div>
+        </div>
+
+        <!-- AI Settings -->
+        <div id="ai-settings" class="settings-content hidden space-y-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">AI Provider</label>
+                <select id="aiProvider" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+                    <option value="azure">Azure OpenAI</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">API Key</label>
+                <input id="aiKeyInput" type="password" placeholder="Your AI API key" 
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+            </div>
+            <div id="azureFields">
+                <label class="block text-sm text-gray-400 mb-2">Deployment URL (Azure only)</label>
+                <input id="deploymentUrlInput" type="url" placeholder="https://your-resource.openai.azure.com/openai/deployments/your-deployment" 
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-all">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">Max Tokens</label>
+                <div class="flex items-center gap-4">
+                    <input id="maxTokensSlider" type="range" min="100" max="2000" step="100" value="800" 
+                        class="flex-1">
+                    <span id="maxTokensLabel" class="text-sm font-mono">800</span>
+                </div>
+            </div>
+        </div>
+
+        <button id="saveSettings" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all mt-6">
+            Save Configuration
+        </button>
+    </div>
+</div>
+
+<!-- Education Panel -->
+<div id="eduPanel" class="hidden fixed right-0 top-0 h-full w-80 glass border-l border-gray-800 z-40 overflow-y-auto p-6 animate-slideInRight">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-blue-400">Learning Center</h2>
+        <button id="closeEdu" class="p-2 hover:bg-gray-800 rounded-lg transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="space-y-6 text-sm">
+        <div>
+            <h3 class="text-lg font-bold text-blue-400 mb-3">GraphQL Basics</h3>
+            <div class="space-y-3 text-gray-300">
+                <div>
+                    <p class="font-semibold text-white mb-1">Queries</p>
+                    <p class="mb-2">Read data from your API. Queries are like GET requests but you specify exactly what fields you want.</p>
+                    <code class="block bg-gray-900 p-2 rounded text-xs">query { user(id: "1") { name email } }</code>
+                </div>
+                <div>
+                    <p class="font-semibold text-white mb-1">Mutations</p>
+                    <p class="mb-2">Modify data on the server. Think of these as POST, PUT, or DELETE operations.</p>
+                    <code class="block bg-gray-900 p-2 rounded text-xs">mutation { createUser(name: "John") { id } }</code>
+                </div>
+                <div>
+                    <p class="font-semibold text-white mb-1">Subscriptions</p>
+                    <p class="mb-2">Real-time data updates via WebSocket connections. Get notified when data changes.</p>
+                    <code class="block bg-gray-900 p-2 rounded text-xs">subscription { messageAdded { id text } }</code>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-lg font-bold text-blue-400 mb-3">Schema Concepts</h3>
+            <div class="space-y-3 text-gray-300">
+                <div>
+                    <p class="font-semibold text-white mb-1">Types</p>
+                    <p>Define the shape of your data. Types include scalars (String, Int, Boolean) and custom object types.</p>
+                </div>
+                <div>
+                    <p class="font-semibold text-white mb-1">Fields</p>
+                    <p>Properties on types that can be queried. Each field has a type and can accept arguments.</p>
+                </div>
+                <div>
+                    <p class="font-semibold text-white mb-1">Introspection</p>
+                    <p>Query the schema itself to discover available types, fields, and operations.</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-lg font-bold text-blue-400 mb-3">Best Practices</h3>
+            <ul class="space-y-2 text-gray-300 list-disc list-inside">
+                <li>Request only the fields you need to minimize payload size</li>
+                <li>Use fragments to reuse common field selections</li>
+                <li>Implement proper error handling for network and GraphQL errors</li>
+                <li>Use variables for dynamic values instead of string interpolation</li>
+                <li>Leverage introspection for development tools and documentation</li>
+                <li>Consider pagination for large datasets using cursor-based approaches</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<main class="container mx-auto px-4 py-6">
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="hidden glass border border-gray-800 rounded-xl p-4 mb-6 animate-fadeIn"></div>
+
+    <!-- AI Assistant Panel -->
+    <div class="glass border border-gray-800 rounded-xl p-6 mb-6">
+        <div class="flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+            <h3 class="font-bold text-purple-400">AI Query Generator</h3>
+        </div>
+        <div class="space-y-4">
+            <textarea id="aiPrompt" rows="3" placeholder="Describe the query you want in natural language... (e.g., 'Get all users with their posts and comments')" 
+                class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500 transition-all"></textarea>
+            <div class="flex gap-2 flex-wrap">
+                <button id="aiGenerate" class="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                    Generate Query
+                </button>
+                <button id="aiOptimize" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                    Optimize Current Query
+                </button>
+            </div>
+        </div>
+        <div id="aiMetrics" class="hidden mt-4 p-4 bg-gray-900 rounded-lg border border-gray-700">
+            <h4 class="font-bold text-purple-400 mb-2 text-sm">AI Metrics</h4>
+            <div id="metricsContent" class="space-y-1 text-xs text-gray-300"></div>
+        </div>
+    </div>
+
+    <!-- Tools Tabs -->
+    <div class="glass border border-gray-800 rounded-xl overflow-hidden mb-6">
+        <div class="flex border-b border-gray-800 overflow-x-auto">
+            <button class="tool-tab flex-1 px-4 py-3 font-medium transition-all border-b-2 border-blue-500 text-blue-400 whitespace-nowrap" data-tool="query">
+                Query Builder
+            </button>
+            <button class="tool-tab flex-1 px-4 py-3 font-medium transition-all border-b-2 border-transparent text-gray-400 hover:text-gray-200 whitespace-nowrap" data-tool="schema">
+                Schema Explorer
+            </button>
+            <button class="tool-tab flex-1 px-4 py-3 font-medium transition-all border-b-2 border-transparent text-gray-400 hover:text-gray-200 whitespace-nowrap" data-tool="history">
+                History
+            </button>
+            <button class="tool-tab flex-1 px-4 py-3 font-medium transition-all border-b-2 border-transparent text-gray-400 hover:text-gray-200 whitespace-nowrap" data-tool="favorites">
+                Favorites
+            </button>
+        </div>
+
+        <!-- Query Builder Tool -->
+        <div id="queryTool" class="tool-content active p-6">
+            <div class="space-y-4">
+                <div class="flex gap-2 flex-wrap">
+                    <select id="operationType" class="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                        <option value="query">Query</option>
+                        <option value="mutation">Mutation</option>
+                        <option value="subscription">Subscription</option>
+                    </select>
+                    <button id="executeQuery" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Execute
+                    </button>
+                    <button id="subscribeBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                        Subscribe
+                    </button>
+                    <button id="validateBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                        Validate
+                    </button>
+                    <button id="formatBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                        Format
+                    </button>
+                    <button id="saveQueryBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-all">
+                        ⭐ Save
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Query Editor</label>
+                    <textarea id="queryEditor"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Variables (JSON)</label>
+                    <textarea id="variablesEditor"></textarea>
+                </div>
+            </div>
+
+            <div id="queryResult" class="hidden mt-6">
+                <div class="flex border-b border-gray-700 mb-4">
+                    <button class="response-tab px-4 py-2 border-b-2 border-blue-500 text-blue-400 text-sm" data-tab="response">Response</button>
+                    <button class="response-tab px-4 py-2 border-b-2 border-transparent text-gray-400 text-sm" data-tab="headers">Headers</button>
+                    <button class="response-tab px-4 py-2 border-b-2 border-transparent text-gray-400 text-sm" data-tab="timing">Timing</button>
+                </div>
+
+                <div id="response-content" class="response-content">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-blue-400">Response</h3>
+                        <button id="copyResponse" class="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-all">
+                            Copy
+                        </button>
+                    </div>
+                    <div id="responseDisplay" class="bg-gray-900 rounded-lg p-4 max-h-96 overflow-auto text-sm font-mono"></div>
+                </div>
+
+                <div id="headers-content" class="response-content hidden">
+                    <h3 class="font-bold text-blue-400 mb-3">Response Headers</h3>
+                    <div id="headersDisplay" class="bg-gray-900 rounded-lg p-4 max-h-96 overflow-auto text-sm font-mono"></div>
+                </div>
+
+                <div id="timing-content" class="response-content hidden">
+                    <h3 class="font-bold text-blue-400 mb-3">Timing Information</h3>
+                    <div id="timingDisplay" class="bg-gray-900 rounded-lg p-4 text-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schema Explorer Tool -->
+        <div id="schemaTool" class="tool-content p-6">
+            <div class="mb-4 flex gap-2">
+                <button id="introspectBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Introspect Schema
+                </button>
+            </div>
+            <div id="schemaResult" class="hidden">
+                <div class="mb-4 flex gap-2">
+                    <button id="copySchema" class="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-all">
+                        Copy Schema
+                    </button>
+                    <button id="downloadSchema" class="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-all">
+                        Download SDL
+                    </button>
+                    <button id="downloadJSON" class="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-all">
+                        Download JSON
+                    </button>
+                </div>
+                <div id="schemaDisplay" class="bg-gray-900 rounded-lg p-4 max-h-96 overflow-auto text-sm font-mono"></div>
+            </div>
+        </div>
+
+        <!-- History Tool -->
+        <div id="historyTool" class="tool-content p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-blue-400">Query History</h3>
+                <button id="clearHistory" class="text-sm bg-red-900 hover:bg-red-800 px-4 py-2 rounded-lg transition-all">
+                    Clear All
+                </button>
+            </div>
+            <div id="historyList" class="space-y-2"></div>
+        </div>
+
+        <!-- Favorites Tool -->
+        <div id="favoritesTool" class="tool-content p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-blue-400">Favorite Queries</h3>
+            </div>
+            <div id="favoritesList" class="space-y-2"></div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<script>
+    // State
+    let config = {
+        endpoint: '',
+        apiKey: '',
+        wsEndpoint: '',
+        aiProvider: 'azure',
+        aiKey: '',
+        deploymentUrl: '',
+        maxTokens: 800
+    };
+    let ws = null;
+    let queryTimingData = {};
+    let lastSchemaData = null;
+
+    // CodeMirror editors
+    let queryEditor, variablesEditor;
+    
+    function initEditors() {
+        try {
+            queryEditor = CodeMirror.fromTextArea(document.getElementById('queryEditor'), {
+                lineNumbers: true,
+                mode: 'javascript',
+                theme: 'dracula',
+                lineWrapping: true,
+                autoCloseBrackets: true
+            });
+            
+            variablesEditor = CodeMirror.fromTextArea(document.getElementById('variablesEditor'), {
+                lineNumbers: true,
+                mode: { name: 'javascript', json: true },
+                theme: 'dracula',
+                lineWrapping: true
+            });
+
+            queryEditor.setSize(null, 200);
+            variablesEditor.setSize(null, 100);
+        } catch (e) {
+            console.error('CodeMirror init failed:', e);
+        }
+    }
+
+    // Load config from localStorage
+    function loadConfig() {
+        const saved = localStorage.getItem('graphql-config');
+        if (saved) {
+            config = JSON.parse(saved);
+            document.getElementById('endpointInput').value = config.endpoint || '';
+            document.getElementById('apiKeyInput').value = config.apiKey || '';
+            document.getElementById('wsEndpointInput').value = config.wsEndpoint || '';
+            document.getElementById('aiProvider').value = config.aiProvider || 'azure';
+            document.getElementById('aiKeyInput').value = config.aiKey || '';
+            document.getElementById('deploymentUrlInput').value = config.deploymentUrl || '';
+            document.getElementById('maxTokensSlider').value = config.maxTokens || 800;
+            document.getElementById('maxTokensLabel').textContent = config.maxTokens || 800;
+            
+            if (config.endpoint) {
+                showStatus('Connected to ' + config.endpoint, 'success');
+            }
+            
+            updateAIProviderFields();
+        }
+    }
+
+    // Save config
+    document.getElementById('saveSettings').addEventListener('click', () => {
+        config.endpoint = document.getElementById('endpointInput').value;
+        config.apiKey = document.getElementById('apiKeyInput').value;
+        config.wsEndpoint = document.getElementById('wsEndpointInput').value;
+        config.aiProvider = document.getElementById('aiProvider').value;
+        config.aiKey = document.getElementById('aiKeyInput').value;
+        config.deploymentUrl = document.getElementById('deploymentUrlInput').value;
+        config.maxTokens = parseInt(document.getElementById('maxTokensSlider').value);
+        
+        localStorage.setItem('graphql-config', JSON.stringify(config));
+        document.getElementById('settingsModal').classList.add('hidden');
+        showStatus('Configuration saved successfully', 'success');
+    });
+
+    // Update AI provider fields
+    document.getElementById('aiProvider').addEventListener('change', updateAIProviderFields);
+    
+    function updateAIProviderFields() {
+        const provider = document.getElementById('aiProvider').value;
+        const azureFields = document.getElementById('azureFields');
+        azureFields.style.display = provider === 'azure' ? 'block' : 'none';
+    }
+
+    // Max tokens slider
+    document.getElementById('maxTokensSlider').addEventListener('input', (e) => {
+        document.getElementById('maxTokensLabel').textContent = e.target.value;
+    });
+
+    // Modal controls
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.remove('hidden');
+    });
+
+    document.getElementById('closeSettings').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.add('hidden');
+    });
+
+    // Education panel
+    document.getElementById('eduToggle').addEventListener('click', () => {
+        document.getElementById('eduPanel').classList.remove('hidden');
+    });
+
+    document.getElementById('closeEdu').addEventListener('click', () => {
+        document.getElementById('eduPanel').classList.add('hidden');
+    });
+
+    // Settings tabs
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('.settings-tab').forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-400');
+                t.classList.add('border-transparent', 'text-gray-400');
+            });
+            tab.classList.add('border-blue-500', 'text-blue-400');
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            
+            document.querySelectorAll('.settings-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(tabName + '-settings').classList.remove('hidden');
+        });
+    });
+
+    // Tool tabs
+    document.querySelectorAll('.tool-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tool = tab.dataset.tool;
+            document.querySelectorAll('.tool-tab').forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-400');
+                t.classList.add('border-transparent', 'text-gray-400');
+            });
+            tab.classList.add('border-blue-500', 'text-blue-400');
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            
+            document.querySelectorAll('.tool-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tool + 'Tool').classList.add('active');
+        });
+    });
+
+    // Response tabs
+    document.querySelectorAll('.response-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('.response-tab').forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-400');
+                t.classList.add('border-transparent', 'text-gray-400');
+            });
+            tab.classList.add('border-blue-500', 'text-blue-400');
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            
+            document.querySelectorAll('.response-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(tabName + '-content').classList.remove('hidden');
+        });
+    });
+
+    // Status display
+    function showStatus(message, type = 'info') {
+        const status = document.getElementById('connectionStatus');
+        const colors = {
+            success: 'border-green-500 text-green-400',
+            error: 'border-red-500 text-red-400',
+            info: 'border-blue-500 text-blue-400'
+        };
+        status.className = `glass border rounded-xl p-4 mb-6 animate-fadeIn ${colors[type]}`;
+        status.textContent = message;
+        status.classList.remove('hidden');
+        setTimeout(() => status.classList.add('hidden'), 5000);
+    }
+
+    // GraphQL request
+    async function graphqlRequest(query, variables = null) {
+        if (!config.endpoint) {
+            throw new Error('Please configure your GraphQL endpoint in settings');
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+
+        if (config.apiKey) {
+            headers['Authorization'] = `Bearer ${config.apiKey}`;
+        }
+
+        const startTime = performance.now();
+        
+        const response = await fetch(config.endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query, variables })
+        });
+
+        const endTime = performance.now();
+        
+        queryTimingData = {
+            duration: Math.round(endTime - startTime),
+            timestamp: new Date().toISOString(),
+            status: response.status,
+            statusText: response.statusText
+        };
+
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+        });
+
+        const data = await response.json();
+        
+        if (data.errors) {
+            throw new Error(data.errors[0].message);
+        }
+
+        return { data, headers: responseHeaders };
+    }
+
+    // Introspection query
+    const introspectionQuery = `
+        query IntrospectionQuery {
+            __schema {
+                queryType { name }
+                mutationType { name }
+                subscriptionType { name }
+                types {
+                    ...FullType
+                }
+            }
+        }
+        fragment FullType on __Type {
+            kind
+            name
+            description
+            fields(includeDeprecated: true) {
+                name
+                description
+                args {
+                    ...InputValue
+                }
+                type {
+                    ...TypeRef
+                }
+            }
+        }
+        fragment InputValue on __InputValue {
+            name
+            description
+            type { ...TypeRef }
+            defaultValue
+        }
+        fragment TypeRef on __Type {
+            kind
+            name
+            ofType {
+                kind
+                name
+                ofType {
+                    kind
+                    name
+                    ofType {
+                        kind
+                        name
+                    }
+                }
+            }
+        }
+    `;
+
+    // Schema introspection
+    document.getElementById('introspectBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('introspectBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-pulse-slow">Loading...</span>';
+
+        try {
+            const result = await graphqlRequest(introspectionQuery);
+            const schema = result.data.data.__schema;
+            lastSchemaData = result.data;
+            
+            displaySchema(schema);
+            document.getElementById('schemaResult').classList.remove('hidden');
+            showStatus('Schema introspected successfully', 'success');
+        } catch (error) {
+            showStatus('Error: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                Introspect Schema
+            `;
+        }
+    });
+
+    function displaySchema(schema) {
+        const display = document.getElementById('schemaDisplay');
+        const types = schema.types.filter(t => !t.name.startsWith('__'));
+        
+        let html = '<div class="space-y-4">';
+        
+        types.forEach(type => {
+            if (type.kind === 'OBJECT') {
+                html += `<div class="border-l-2 border-blue-500 pl-4">`;
+                html += `<div class="text-blue-400 font-bold">type ${type.name} {</div>`;
+                if (type.fields) {
+                    type.fields.forEach(field => {
+                        html += `<div class="ml-4 text-gray-300">${field.name}: ${getTypeName(field.type)}</div>`;
+                    });
+                }
+                html += `<div class="text-blue-400 font-bold">}</div></div>`;
+            }
+        });
+        
+        html += '</div>';
+        display.innerHTML = html;
+    }
+
+    function getTypeName(type) {
+        if (type.kind === 'NON_NULL') {
+            return getTypeName(type.ofType) + '!';
+        }
+        if (type.kind === 'LIST') {
+            return '[' + getTypeName(type.ofType) + ']';
+        }
+        return type.name;
+    }
+
+    // Copy schema
+    document.getElementById('copySchema').addEventListener('click', () => {
+        const text = document.getElementById('schemaDisplay').innerText;
+        navigator.clipboard.writeText(text);
+        showStatus('Schema copied to clipboard', 'success');
+    });
+
+    // Download schema
+    document.getElementById('downloadSchema').addEventListener('click', () => {
+        const text = document.getElementById('schemaDisplay').innerText;
+        downloadFile(text, 'schema.graphql', 'text/plain');
+        showStatus('Schema downloaded', 'success');
+    });
+
+    document.getElementById('downloadJSON').addEventListener('click', () => {
+        if (lastSchemaData) {
+            const json = JSON.stringify(lastSchemaData, null, 2);
+            downloadFile(json, 'schema.json', 'application/json');
+            showStatus('Schema JSON downloaded', 'success');
+        }
+    });
+
+    function downloadFile(content, filename, contentType) {
+        const blob = new Blob([content], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Execute query
+    document.getElementById('executeQuery').addEventListener('click', async () => {
+        const query = queryEditor.getValue();
+        const variablesText = variablesEditor.getValue();
+        
+        if (!query.trim()) {
+            showStatus('Please enter a query', 'error');
+            return;
+        }
+
+        let variables = null;
+        if (variablesText.trim()) {
+            try {
+                variables = JSON.parse(variablesText);
+            } catch (e) {
+                showStatus('Invalid JSON in variables', 'error');
+                return;
+            }
+        }
+
+        try {
+            const result = await graphqlRequest(query, variables);
+            displayResponse(result.data);
+            displayHeaders(result.headers);
+            displayTiming();
+            document.getElementById('queryResult').classList.remove('hidden');
+            showStatus('Query executed successfully', 'success');
+            addToHistory(query, variables);
+        } catch (error) {
+            displayResponse({ error: error.message }, true);
+            document.getElementById('queryResult').classList.remove('hidden');
+            showStatus('Error: ' + error.message, 'error');
+        }
+    });
+
+    // WebSocket subscription
+    document.getElementById('subscribeBtn').addEventListener('click', () => {
+        const endpoint = config.wsEndpoint || config.endpoint.replace(/^http/, 'ws');
+        
+        if (ws) {
+            ws.close();
+            showStatus('WebSocket closed', 'info');
+            return;
+        }
+
+        try {
+            ws = new WebSocket(endpoint);
+            
+            ws.onopen = () => {
+                showStatus('WebSocket connected', 'success');
+                const query = queryEditor.getValue();
+                const variablesText = variablesEditor.getValue();
+                let variables = null;
+                
+                if (variablesText.trim()) {
+                    try {
+                        variables = JSON.parse(variablesText);
+                    } catch (e) {
+                        showStatus('Invalid JSON in variables', 'error');
+                        return;
+                    }
+                }
+
+                ws.send(JSON.stringify({
+                    type: 'start',
+                    payload: { query, variables }
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                displayResponse(data);
+                document.getElementById('queryResult').classList.remove('hidden');
+            };
+
+            ws.onerror = () => {
+                showStatus('WebSocket error', 'error');
+            };
+
+            ws.onclose = () => {
+                showStatus('WebSocket disconnected', 'info');
+                ws = null;
+            };
+        } catch (error) {
+            showStatus('WebSocket connection failed: ' + error.message, 'error');
+        }
+    });
+
+    // Validate query
+    document.getElementById('validateBtn').addEventListener('click', () => {
+        const query = queryEditor.getValue();
+        if (!query.trim()) {
+            showStatus('No query to validate', 'error');
+            return;
+        }
+        // Basic validation
+        if (query.includes('query') || query.includes('mutation') || query.includes('subscription')) {
+            showStatus('Query syntax looks valid', 'success');
+        } else {
+            showStatus('Query might be missing operation type', 'error');
+        }
+    });
+
+    // Format query
+    document.getElementById('formatBtn').addEventListener('click', () => {
+        try {
+            const query = queryEditor.getValue();
+            const formatted = query
+                .replace(/\s+/g, ' ')
+                .replace(/{\s*/g, ' {\n  ')
+                .replace(/\s*}/g, '\n}')
+                .replace(/,\s*/g, ',\n  ');
+            queryEditor.setValue(formatted.trim());
+            showStatus('Query formatted', 'success');
+        } catch (e) {
+            showStatus('Error formatting query', 'error');
+        }
+    });
+
+    function displayResponse(data, isError = false) {
+        const display = document.getElementById('responseDisplay');
+        display.innerHTML = formatJSON(JSON.stringify(data, null, 2), isError);
+    }
+
+    function displayHeaders(headers) {
+        const display = document.getElementById('headersDisplay');
+        display.innerHTML = formatJSON(JSON.stringify(headers, null, 2));
+    }
+
+    function displayTiming() {
+        const display = document.getElementById('timingDisplay');
+        display.innerHTML = `
+            <div class="space-y-2">
+                <div><span class="text-gray-400">Duration:</span> <span class="text-green-400">${queryTimingData.duration}ms</span></div>
+                <div><span class="text-gray-400">Status:</span> <span class="text-blue-400">${queryTimingData.status} ${queryTimingData.statusText}</span></div>
+                <div><span class="text-gray-400">Timestamp:</span> <span class="text-gray-300">${new Date(queryTimingData.timestamp).toLocaleString()}</span></div>
+            </div>
+        `;
+    }
+
+    function formatJSON(json, isError = false) {
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+            let cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = isError ? 'text-red-400' : 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return `<span class="${cls}">${match}</span>`;
+        });
+    }
+
+    // Copy response
+    document.getElementById('copyResponse').addEventListener('click', () => {
+        const text = document.getElementById('responseDisplay').innerText;
+        navigator.clipboard.writeText(text);
+        showStatus('Response copied to clipboard', 'success');
+    });
+
+    // History management
+    function addToHistory(query, variables = null) {
+        let history = JSON.parse(localStorage.getItem('graphql-history') || '[]');
+        history.unshift({
+            query,
+            variables,
+            timestamp: new Date().toISOString(),
+            id: Date.now()
+        });
+        localStorage.setItem('graphql-history', JSON.stringify(history.slice(0, 50)));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const history = JSON.parse(localStorage.getItem('graphql-history') || '[]');
+        const container = document.getElementById('historyList');
+        
+        if (history.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-sm">No query history yet</p>';
+            return;
+        }
+
+        container.innerHTML = history.map(item => `
+            <div class="history-item glass border border-gray-700 rounded-lg p-3 cursor-pointer transition-all" data-id="${item.id}">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <code class="text-sm text-blue-400 block truncate">${item.query.split('\n')[0]}</code>
+                        <small class="text-gray-500 text-xs">${new Date(item.timestamp).toLocaleString()}</small>
+                    </div>
+                    <button class="delete-history text-red-400 hover:text-red-300 p-1" data-id="${item.id}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        // Add click handlers
+        container.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.delete-history')) {
+                    const id = parseInt(item.dataset.id);
+                    const historyItem = history.find(h => h.id === id);
+                    if (historyItem) {
+                        queryEditor.setValue(historyItem.query);
+                        if (historyItem.variables) {
+                            variablesEditor.setValue(JSON.stringify(historyItem.variables, null, 2));
+                        }
+                        showStatus('Query loaded from history', 'success');
+                    }
+                }
+            });
+        });
+
+        container.querySelectorAll('.delete-history').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.id);
+                deleteFromHistory(id);
+            });
+        });
+    }
+
+    function deleteFromHistory(id) {
+        let history = JSON.parse(localStorage.getItem('graphql-history') || '[]');
+        history = history.filter(h => h.id !== id);
+        localStorage.setItem('graphql-history', JSON.stringify(history));
+        renderHistory();
+        showStatus('Deleted from history', 'info');
+    }
+
+    document.getElementById('clearHistory').addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all history?')) {
+            localStorage.removeItem('graphql-history');
+            renderHistory();
+            showStatus('History cleared', 'info');
+        }
+    });
+
+    // Favorites management
+    document.getElementById('saveQueryBtn').addEventListener('click', () => {
+        const query = queryEditor.getValue();
+        const variables = variablesEditor.getValue();
+        
+        if (!query.trim()) {
+            showStatus('No query to save', 'error');
+            return;
+        }
+
+        const name = prompt('Enter a name for this query:');
+        if (!name) return;
+
+        let favorites = JSON.parse(localStorage.getItem('graphql-favorites') || '[]');
+        favorites.push({
+            name,
+            query,
+            variables,
+            timestamp: new Date().toISOString(),
+            id: Date.now()
+        });
+        localStorage.setItem('graphql-favorites', JSON.stringify(favorites));
+        renderFavorites();
+        showStatus('Query saved to favorites', 'success');
+    });
+
+    function renderFavorites() {
+        const favorites = JSON.parse(localStorage.getItem('graphql-favorites') || '[]');
+        const container = document.getElementById('favoritesList');
+        
+        if (favorites.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-sm">No favorite queries yet</p>';
+            return;
+        }
+
+        container.innerHTML = favorites.map(item => `
+            <div class="glass border border-gray-700 rounded-lg p-3">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex-1">
+                        <h4 class="text-white font-medium">${item.name}</h4>
+                        <small class="text-gray-500 text-xs">${new Date(item.timestamp).toLocaleString()}</small>
+                    </div>
+                    <div class="flex gap-1">
+                        <button class="load-favorite text-blue-400 hover:text-blue-300 p-1" data-id="${item.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </button>
+                        <button class="delete-favorite text-red-400 hover:text-red-300 p-1" data-id="${item.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <code class="text-sm text-gray-400 block truncate">${item.query.split('\n')[0]}</code>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.load-favorite').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                const favorite = favorites.find(f => f.id === id);
+                if (favorite) {
+                    queryEditor.setValue(favorite.query);
+                    if (favorite.variables) {
+                        variablesEditor.setValue(favorite.variables);
+                    }
+                    showStatus('Loaded: ' + favorite.name, 'success');
+                }
+            });
+        });
+
+        container.querySelectorAll('.delete-favorite').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                deleteFromFavorites(id);
+            });
+        });
+    }
+
+    function deleteFromFavorites(id) {
+        let favorites = JSON.parse(localStorage.getItem('graphql-favorites') || '[]');
+        favorites = favorites.filter(f => f.id !== id);
+        localStorage.setItem('graphql-favorites', JSON.stringify(favorites));
+        renderFavorites();
+        showStatus('Deleted from favorites', 'info');
+    }
+
+    // AI Query Generation
+    document.getElementById('aiGenerate').addEventListener('click', async () => {
+        const prompt = document.getElementById('aiPrompt').value.trim();
+        
+        if (!prompt) {
+            showStatus('Please enter a prompt', 'error');
+            return;
+        }
+
+        if (!config.aiKey) {
+            showStatus('Please configure AI settings first', 'error');
+            return;
+        }
+
+        const startTime = performance.now();
+
+        try {
+            let generatedQuery = '';
+
+            if (config.aiProvider === 'azure') {
+                generatedQuery = await generateWithAzure(prompt);
+            } else if (config.aiProvider === 'openai') {
+                generatedQuery = await generateWithOpenAI(prompt);
+            } else if (config.aiProvider === 'anthropic') {
+                generatedQuery = await generateWithAnthropic(prompt);
+            }
+
+            const endTime = performance.now();
+            const latency = Math.round(endTime - startTime);
+
+            queryEditor.setValue(generatedQuery);
+            showStatus('Query generated successfully!', 'success');
+
+            // Show metrics
+            const metricsDiv = document.getElementById('metricsContent');
+            metricsDiv.innerHTML = `
+                <div><strong>Provider:</strong> ${config.aiProvider}</div>
+                <div><strong>Latency:</strong> ${latency}ms</div>
+                <div><strong>Max Tokens:</strong> ${config.maxTokens}</div>
+            `;
+            document.getElementById('aiMetrics').classList.remove('hidden');
+
+            addToHistory(generatedQuery);
+        } catch (error) {
+            showStatus('AI Error: ' + error.message, 'error');
+        }
+    });
+
+    // AI Optimize
+    document.getElementById('aiOptimize').addEventListener('click', async () => {
+        const currentQuery = queryEditor.getValue();
+        
+        if (!currentQuery.trim()) {
+            showStatus('No query to optimize', 'error');
+            return;
+        }
+
+        if (!config.aiKey) {
+            showStatus('Please configure AI settings first', 'error');
+            return;
+        }
+
+        const prompt = `Optimize this GraphQL query for better performance and best practices:\n\n${currentQuery}`;
+
+        try {
+            let optimizedQuery = '';
+
+            if (config.aiProvider === 'azure') {
+                optimizedQuery = await generateWithAzure(prompt);
+            } else if (config.aiProvider === 'openai') {
+                optimizedQuery = await generateWithOpenAI(prompt);
+            } else if (config.aiProvider === 'anthropic') {
+                optimizedQuery = await generateWithAnthropic(prompt);
+            }
+
+            queryEditor.setValue(optimizedQuery);
+            showStatus('Query optimized!', 'success');
+        } catch (error) {
+            showStatus('AI Error: ' + error.message, 'error');
+        }
+    });
+
+    async function generateWithAzure(prompt) {
+        const apiVersion = '2023-07-01-preview';
+        const url = `${config.deploymentUrl}/completions?api-version=${apiVersion}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': config.aiKey
+            },
+            body: JSON.stringify({
+                prompt: `Convert this to a GraphQL query:\n${prompt}\n\nGraphQL Query:`,
+                temperature: 0,
+                max_tokens: config.maxTokens
+            })
+        });
+
+        const data = await response.json();
+        return data.choices?.[0]?.text?.trim() || 'No query generated';
+    }
+
+    async function generateWithOpenAI(prompt) {
+        const response = await fetch('https://api.openai.com/v1/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.aiKey}`
+            },
+            body: JSON.stringify({
+                model: 'text-davinci-003',
+                prompt: `Convert this to a GraphQL query:\n${prompt}\n\nGraphQL Query:`,
+                temperature: 0,
+                max_tokens: config.maxTokens
+            })
+        });
+
+        const data = await response.json();
+        return data.choices?.[0]?.text?.trim() || 'No query generated';
+    }
+
+    async function generateWithAnthropic(prompt) {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': config.aiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-sonnet-20240229',
+                max_tokens: config.maxTokens,
+                messages: [{
+                    role: 'user',
+                    content: `Convert this to a GraphQL query:\n${prompt}`
+                }]
+            })
+        });
+
+        const data = await response.json();
+        return data.content?.[0]?.text || 'No query generated';
+    }
+
+    // Theme toggle
+    let isDarkMode = true;
+    document.getElementById('themeBtn').addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        
+        if (isDarkMode) {
+            document.body.classList.remove('bg-white', 'text-gray-900');
+            document.body.classList.add('bg-black', 'text-gray-100');
+        } else {
+            document.body.classList.remove('bg-black', 'text-gray-100');
+            document.body.classList.add('bg-white', 'text-gray-900');
+        }
+        
+        showStatus('Theme changed', 'info');
+    });
+
+    // Export configuration
+    document.getElementById('exportBtn').addEventListener('click', () => {
+        const exportData = {
+            config,
+            favorites: JSON.parse(localStorage.getItem('graphql-favorites') || '[]'),
+            history: JSON.parse(localStorage.getItem('graphql-history') || '[]')
+        };
+        
+        const json = JSON.stringify(exportData, null, 2);
+        downloadFile(json, 'graphql-dashboard-export.json', 'application/json');
+        showStatus('Configuration exported', 'success');
+    });
+
+    // Import configuration
+    document.getElementById('importBtn').addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                try {
+                    const importData = JSON.parse(event.target.result);
+                    
+                    if (importData.config) {
+                        localStorage.setItem('graphql-config', JSON.stringify(importData.config));
+                    }
+                    if (importData.favorites) {
+                        localStorage.setItem('graphql-favorites', JSON.stringify(importData.favorites));
+                    }
+                    if (importData.history) {
+                        localStorage.setItem('graphql-history', JSON.stringify(importData.history));
+                    }
+                    
+                    loadConfig();
+                    renderHistory();
+                    renderFavorites();
+                    showStatus('Configuration imported successfully', 'success');
+                } catch (error) {
+                    showStatus('Error importing configuration: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+        };
+        
+        input.click();
+    });
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+        initEditors();
+        loadConfig();
+        renderHistory();
+        renderFavorites();
+    });
+
+    // Cleanup WebSocket on page unload
+    window.addEventListener('beforeunload', () => {
+        if (ws) {
+            ws.close();
+        }
+    });
+</script>
+
+</body>
+</html>
