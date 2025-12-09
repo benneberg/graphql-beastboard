@@ -1,7 +1,6 @@
-// ===== manifest.json =====
 {
   "manifest_version": 3,
-  "name": "GraphQL BeastBoard",
+  "name": "GraphQL Dashboard Ultimate",
   "version": "2.0.0",
   "description": "Ultimate GraphQL dashboard with AI-powered query generation, schema exploration, and real-time subscriptions",
   "permissions": [
